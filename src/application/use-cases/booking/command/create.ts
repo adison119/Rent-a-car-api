@@ -74,8 +74,8 @@ export class BookingCreateCommand implements UseCase<
         'ห้ามจองรถเช่าแบบย้อนอดีต วันที่เริ่มเช่าต้องเป็นวันนี้หรือวันถัดไป',
       );
     }
-    if (endAt < startAt) {
-      throw new BadRequestException('วันเวลาคืนรถต้องไม่ก่อนวันเวลาเริ่มเช่า');
+    if (endAt <= startAt) {
+      throw new BadRequestException('วันเวลาคืนรถต้องอยู่หลังวันรับรถและเวลาเริ่มเช่า');
     }
 
     return this.prisma.$transaction(async (tx) => {

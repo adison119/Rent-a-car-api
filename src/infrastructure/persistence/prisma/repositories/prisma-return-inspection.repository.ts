@@ -82,11 +82,24 @@ export class PrismaReturnInspectionRepository implements ReturnInspectionReposit
     return row ? toDomain(row as Parameters<typeof toDomain>[0]) : null;
   }
 
-  async findMany(params?: { bookingId?: string }): Promise<ReturnInspection[]> {
+  async findMany(params?: {
+    bookingId?: string;
+  }): Promise<(ReturnInspection & { carDisplayName?: string })[]> {
     const rows = await this.prisma.returnInspection.findMany({
       where:
         params?.bookingId != null ? { bookingId: params.bookingId } : undefined,
+      include: {
+        booking: { include: { car: true } },
+      },
     });
-    return rows.map((r) => toDomain(r as Parameters<typeof toDomain>[0]));
+    return rows.map((r) => {
+      const inspection = toDomain(r as Parameters<typeof toDomain>[0]);
+      const car = (r as { booking?: { car?: { brand: string; model: string; year: number } } })
+        .booking?.car;
+      const carDisplayName = car
+        ? `${car.brand} ${car.model} (${car.year})`
+        : undefined;
+      return { ...inspection, carDisplayName };
+    });
   }
 }
