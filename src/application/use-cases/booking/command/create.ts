@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
+import type { PrismaClient } from '@prisma/client';
 import { PrismaService } from '../../../../infrastructure/persistence/prisma/prisma.service';
 import { UseCase } from '../../../../core/use-case';
 import type { Booking } from '../../../../domain/booking';
@@ -87,7 +88,7 @@ export class BookingCreateCommand implements UseCase<
       if (overlapping.length > 0) {
         throw new ConflictException(BOOKING_CONFLICT_MESSAGE);
       }
-      return this.bookingRepository.create(
+      const booking = await this.bookingRepository.create(
         {
           customerId: body.customerId,
           carId: body.carId,
@@ -103,6 +104,11 @@ export class BookingCreateCommand implements UseCase<
         },
         tx,
       );
+      await (tx as PrismaClient).customer.update({
+        where: { id: body.customerId },
+        data: { status: 'RENTER' },
+      });
+      return booking;
     });
   }
 }
