@@ -1,0 +1,138 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ContactChannel {
+  FACEBOOK
+  LINE
+}
+
+enum CustomerStatus {
+  VISITOR
+  CUSTOMER
+  RENTER
+  VOID
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum CarStatus {
+  AVAILABLE
+  MAINTENANCE
+  VOID
+}
+
+enum PickupType {
+  AT_STORE
+  DELIVERY
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  role      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  createdBookings   Booking[]
+  createdFiles      File[]
+  createdCustomers  Customer[]
+}
+
+model File {
+  id          String   @id @default(cuid())
+  bucketName  String
+  fileName    String
+  mimeType    String
+  size        Int
+  url         String?  // presigned URL ณ ตอนอัปโหลด (หมดอายุตามที่ตั้งใน S3)
+  createdById String?
+  createdAt   DateTime @default(now())
+
+  createdBy User? @relation(fields: [createdById], references: [id], onDelete: SetNull)
+}
+
+model Car {
+  id                 String   @id @default(cuid())
+  brand              String
+  model              String
+  year               Int
+  lastInspectionAt   DateTime
+  rentalPricePerDay  Decimal  @db.Decimal(10, 2)
+  depositPricePerDay Decimal  @db.Decimal(10, 2)
+  imageUrls          String[] @default([])
+  status             CarStatus @default(AVAILABLE)
+  plateNumber        String?  @unique
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  bookings Booking[]
+}
+
+model Customer {
+  id               String          @id @default(cuid())
+  name             String
+  phone            String
+  address          String?
+  contactChannel   ContactChannel
+  idDocumentUrls   String[]        @default([])
+  status          CustomerStatus? @default(VISITOR)
+  createdById     String?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  createdBy User?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  bookings  Booking[]
+}
+
+model Booking {
+  id                   String        @id @default(cuid())
+  customerId           String
+  carId                String
+  startAt              DateTime
+  endAt                DateTime
+  pickupType           PickupType
+  deliveryAddress      String?
+  deliveryNote         String?
+  status               BookingStatus @default(PENDING)
+  rentalPricePerDay    Decimal       @db.Decimal(10, 2)
+  depositPricePerDay   Decimal       @db.Decimal(10, 2)
+  createdById          String?
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+
+  customer   Customer         @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  car        Car              @relation(fields: [carId], references: [id], onDelete: Cascade)
+  createdBy  User?            @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  inspection ReturnInspection?
+
+  @@index([carId])
+  @@index([customerId])
+  @@index([carId, startAt, endAt])
+  @@index([startAt, endAt])
+}
+
+model ReturnInspection {
+  id                String   @id @default(cuid())
+  bookingId         String   @unique
+  insuranceExpiryAt DateTime
+  imagesBeforeUrls  String[] @default([])
+  imagesAfterUrls   String[] @default([])
+  note              String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
